@@ -1,4 +1,7 @@
-Learning_Rate, Iterations, Train_MSE, Test_MSE
-0.1, 1000, 410836.25, 583434.60
-0.01, 1000, 411252.07, 584143.81
-0.001, 1000, 773897.42, 953824.09
+Learning_Rate, Iterations, Train_MSE, Test_MSE, R2_Score
+0.1, 1000, 410836.25, 583434.60, 0.3953
+0.01, 1000, 411252.07, 584143.81, 0.3946
+0.001, 1000, 773897.42, 953824.09, 0.0115
+
+Best Set of Parameters:
+Best Learning Rate: 0.1, Iterations: 1000, Best Train MSE: 410836.25, Best Test MSE: 583434.60, Best R2: 0.3953

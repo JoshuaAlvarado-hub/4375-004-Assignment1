@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import SGDRegressor
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, r2_score, explained_variance_score
 
 # retrieve data (apartment prices)
 data_url = "https://raw.githubusercontent.com/JoshuaAlvarado-hub/4375-004-Assignment1/main/apartments.csv"
@@ -50,26 +50,21 @@ y_std = y_train.std()
 y_train_scaled = (y_train - y_mean) / y_std
 y_test_scaled = (y_test - y_mean) / y_std
 
-# parameters to be varied
-learning_rates = [1e-5, 1e-6, 1e-7]
-iteration_nums = [1000, 2000, 3000]  # must be multiples of 50
+# parameter optimization
+learning_rates = [1e-4, 1e-5, 1e-6]
+iteration_nums = [1000, 2000, 3000]
+
+models = []
+train_MSEs = []
+loss_hists = []
+it_nums = []
 
 # trials, logs, and plots
 with open("log_trials_part2.txt", "w") as log:
-    # training models
-    log.write("TRAINING\n")
-    log.write("Learning_Rate, Iterations, Train_MSE\n")
+    log.write("Learning_Rate, Iterations, Train_MSE, Test_MSE\n")
 
-    # For models generated during training:
-    models = []      # will store models
-    train_MSEs = []  # will store MSEs
-    loss_hists = []  # will store loss histories
-    it_nums = []     # will store numbers of iterations
-
-    # varying learning rates and numbers of iterations for each model
     for lr in learning_rates:
         for iterations in iteration_nums:
-            # Create SGDRegressor model using parameters
             model = SGDRegressor(
                 loss="squared_error",
                 max_iter=1,
@@ -81,59 +76,44 @@ with open("log_trials_part2.txt", "w") as log:
             )
 
             loss_history = []
-
-            # training the model
             for iteration in range(iterations):
-                # partial fit each iteration
                 model.partial_fit(X_train, y_train_scaled)
-
-                # track training MSE for every 50th iteration
+                
                 if (iteration + 1) % 50 == 0:
-                    train_predictions = model.predict(X_train)
-                    train_predictions_orig = train_predictions * y_std + y_mean
-                    train_mse = mean_squared_error(y_train, train_predictions_orig)
-                    loss_history.append(train_mse)
+                    train_pred = model.predict(X_train) * y_std + y_mean
+                    loss_history.append(mean_squared_error(y_train, train_pred))
 
-            # store relevant information after training:
-            models.append(model)                 # model itself
-            train_MSEs.append(loss_history[-1])  # training MSE
-            loss_hists.append(loss_history)      # loss history
-            it_nums.append(iterations)           # number of iterations
+            final_train_mse = loss_history[-1]
+            test_pred_trial = model.predict(X_test) * y_std + y_mean
+            final_test_mse = mean_squared_error(y_test, test_pred_trial)
+            
+            models.append(model)
+            train_MSEs.append(final_train_mse)
+            loss_hists.append(loss_history)
+            it_nums.append(iterations)
 
-            # track in log file
-            log.write(f"{lr}, {iterations}, {train_MSEs[-1]:.2f}\n")
+            log.write(f"{lr}, {iterations}, {final_train_mse:.2f}, {final_test_mse:.2f}\n")
 
-    # determining optimal model
-    min_train_mse = min(train_MSEs)
-    min_train_mse_index = train_MSEs.index(min_train_mse)
-
-    # storing information of optimal model
-    optimal_model = models[min_train_mse_index]                   # model
-    optimal_model_lr = optimal_model.eta0                         # learning rate
-    optimal_model_iterations = it_nums[min_train_mse_index]       # number of iterations
-    optimal_model_loss_history = loss_hists[min_train_mse_index]  # loss history
-
-    # testing optimal model
-    log.write(f"\nTESTING OPTIMAL MODEL\n")
-
+    best_idx = np.argmin(train_MSEs)
+    optimal_model = models[best_idx]
+    
     test_predictions = optimal_model.predict(X_test) * y_std + y_mean
-    test_mse = mean_squared_error(y_test, test_predictions)
+    final_mse = mean_squared_error(y_test, test_predictions)
+    final_r2 = r2_score(y_test, test_predictions)
+    final_evs = explained_variance_score(y_test, test_predictions)
 
-    # track testing MSE of optimal model
-    log.write("Learning_Rate, Iterations, Test_MSE\n")
-    log.write(f"{optimal_model_lr}, {optimal_model_iterations}, {test_mse:.2f}\n")
+    log.write(f"\nBest Parameters Report:\n")
+    log.write(f"LR: {optimal_model.eta0}, Iterations: {it_nums[best_idx]}, Test MSE: {final_mse:.2f}, R2: {final_r2:.4f}\n")
 
-    # x-axis: recorded iterations
-    iterations_recorded = np.arange(50, optimal_model_iterations + 1, 50)
+print(f"Optimal LR: {optimal_model.eta0} ; Best Test MSE: {final_mse:.2f}")
+print(f"R2 Score: {final_r2:.4f} ; Explained Variance: {final_evs:.4f}")
+print("\nOptimal Weight Coefficients:")
+print(optimal_model.coef_)
 
-    # graph of training history for optimal model
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(iterations_recorded, optimal_model_loss_history, marker='o')
-    ax.set_xlabel("Number of Iterations")
-    ax.set_ylabel("Training MSE")
-    ax.set_title(
-        f"Training MSE vs. Iterations for Optimal Model\n(LR={optimal_model_lr}, Iterations={optimal_model_iterations})")
-    ax.grid(True)
-
-    plt.tight_layout()
-    plt.show()
+plt.figure(figsize=(10, 6))
+plt.plot(np.arange(50, it_nums[best_idx] + 1, 50), loss_hists[best_idx], marker='o')
+plt.title(f"Optimal Model Convergence (LR={optimal_model.eta0})")
+plt.xlabel("Iterations")
+plt.ylabel("Training MSE")
+plt.grid(True)
+plt.show()
