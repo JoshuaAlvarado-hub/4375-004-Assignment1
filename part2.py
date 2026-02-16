@@ -6,6 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import SGDRegressor
 from sklearn.metrics import mean_squared_error
 
+# retrieve data (apartment prices)
 data_url = "https://raw.githubusercontent.com/JoshuaAlvarado-hub/4375-004-Assignment1/main/apartments.csv"
 df = pd.read_csv(data_url, sep=None, engine='python', on_bad_lines='skip')
 df.columns = df.columns.str.strip()
@@ -42,45 +43,88 @@ scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
-# trials, logs, and plots
+# parameters to be varied
 learning_rates = [1e-4, 1e-5, 1e-6]
+iteration_nums = [1000, 2000, 3000]
 
 plt.figure(figsize=(10, 6))
 
-with open("log_trials.txt", "w") as log:
-    log.write("Learning_Rate, Epochs, Train_MSE, Test_MSE\n")
+# trials, logs, and plots
+with open("log_trials_part2.txt", "w") as log:
+    # training models
+    log.write("TRAINING\n\n")
+    log.write("Learning_Rate, Iterations, Train_MSE\n")
 
+    # For models generated during training:
+    models = []      # will store models
+    train_MSEs = []  # will store MSEs
+    loss_hists = []  # will store loss histories
+    it_nums = []     # will store numbers of iterations
+
+    # varying learning rates and numbers of iterations for each model
     for lr in learning_rates:
-        model = SGDRegressor(
-            loss="squared_error",
-            max_iter=1,
-            learning_rate="constant",
-            eta0=lr,
-            warm_start=True,
-            penalty=None,
-            shuffle=False
-        )
+        for iterations in iteration_nums:
+            # Create SGDRegressor model using parameters
+            model = SGDRegressor(
+                loss="squared_error",
+                max_iter=1,
+                learning_rate="constant",
+                eta0=lr,
+                warm_start=True,
+                penalty=None,
+                shuffle=False
+            )
 
-        epochs = 1000
-        loss_history = []
+            loss_history = []
 
-        for epoch in range(epochs):
-            model.partial_fit(X_train, y_train)
+            # training the model
+            for iteration in range(iterations):
+                # partial fit each iteration
+                model.partial_fit(X_train, y_train)
 
-            train_predictions = model.predict(X_train)
-            train_mse = mean_squared_error(y_train, train_predictions)
-            loss_history.append(train_mse)
+                # track training MSE for each iteration
+                train_predictions = model.predict(X_train)
+                train_mse = mean_squared_error(y_train, train_predictions)
+                loss_history.append(train_mse)
 
-        test_predictions = model.predict(X_test)
-        test_mse = mean_squared_error(y_test, test_predictions)
+            # store relevant information after training:
+            models.append(model)                 # model itself
+            train_MSEs.append(loss_history[-1])  # training MSE
+            loss_hists.append(loss_history)      # loss history
+            it_nums.append(iterations)           # number of iterations
 
-        log.write(f"{lr}, 1000, {train_mse:.2f}, {test_mse:.2f}\n")
-        plt.plot(range(1000), loss_history, label=f"LR: {lr}")
+            # track in log file
+            log.write(f"{lr}, {iterations}, {train_MSEs[-1]:.2f}\n")
 
-plt.title("MSE vs. Number of Epochs (SGDRegressor)")
-plt.xlabel("Epochs")
-plt.ylabel("Mean Squared Error")
-plt.yscale('log')
-plt.legend()
-plt.grid(True)
-plt.show()
+    # determining optimal model
+    min_train_mse = min(train_MSEs)
+    min_train_mse_index = train_MSEs.index(min_train_mse)
+
+    # storing information of optimal model
+    optimal_model = models[min_train_mse_index]              # model
+    optimal_model_lr = optimal_model.eta0                    # learning rate
+    optimal_model_iterations = it_nums[min_train_mse_index]  # number of iterations
+
+    # testing optimal model
+    log.write(f"\nTESTING OPTIMAL MODEL\n")
+
+    test_predictions = optimal_model.predict(X_test)
+    test_mse = mean_squared_error(y_test, test_predictions)
+
+    # track testing MSE of optimal model
+    log.write("Learning_Rate, Iterations, Test_MSE")
+    log.write(f"{optimal_model_lr}, {optimal_model_iterations}, {test_mse:.2f}\n")
+
+    # close log file
+    log.close()
+
+    '''
+    plt.plot(range(1000), loss_history, label=f"LR: {lr}")
+    plt.title("MSE vs. Number of Iterations (SGDRegressor)")
+    plt.xlabel("Iterations")
+    plt.ylabel("Mean Squared Error")
+    plt.yscale('log')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+    '''
