@@ -36,23 +36,30 @@ existing_drops = [c for c in cols_to_drop if c in df.columns]
 X = df.drop(columns=existing_drops).select_dtypes(include=[np.number, bool]).astype(float).values
 y = df['price'].values
 
-# standardize
+# train-test split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+# standardize X
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
+# scale y
+y_mean = y_train.mean()
+y_std = y_train.std()
+y_train_scaled = (y_train - y_mean) / y_std
+y_test_scaled = (y_test - y_mean) / y_std
+
 # parameters to be varied
-learning_rates = [1e-4, 1e-5, 1e-6]
-iteration_nums = [1000, 2000, 3000]
+learning_rates = [1e-5, 1e-6, 1e-7]
+iteration_nums = [1000, 2000, 3000]  # must be multiples of 50
 
 plt.figure(figsize=(10, 6))
 
 # trials, logs, and plots
 with open("log_trials_part2.txt", "w") as log:
     # training models
-    log.write("TRAINING\n\n")
+    log.write("TRAINING\n")
     log.write("Learning_Rate, Iterations, Train_MSE\n")
 
     # For models generated during training:
@@ -80,12 +87,14 @@ with open("log_trials_part2.txt", "w") as log:
             # training the model
             for iteration in range(iterations):
                 # partial fit each iteration
-                model.partial_fit(X_train, y_train)
+                model.partial_fit(X_train, y_train_scaled)
 
-                # track training MSE for each iteration
-                train_predictions = model.predict(X_train)
-                train_mse = mean_squared_error(y_train, train_predictions)
-                loss_history.append(train_mse)
+                # track training MSE for every 50th iteration
+                if (iteration + 1) % 50 == 0:
+                    train_predictions = model.predict(X_train)
+                    train_predictions_orig = train_predictions * y_std + y_mean
+                    train_mse = mean_squared_error(y_train, train_predictions_orig)
+                    loss_history.append(train_mse)
 
             # store relevant information after training:
             models.append(model)                 # model itself
@@ -101,30 +110,17 @@ with open("log_trials_part2.txt", "w") as log:
     min_train_mse_index = train_MSEs.index(min_train_mse)
 
     # storing information of optimal model
-    optimal_model = models[min_train_mse_index]              # model
-    optimal_model_lr = optimal_model.eta0                    # learning rate
-    optimal_model_iterations = it_nums[min_train_mse_index]  # number of iterations
+    optimal_model = models[min_train_mse_index]                   # model
+    optimal_model_lr = optimal_model.eta0                         # learning rate
+    optimal_model_iterations = it_nums[min_train_mse_index]       # number of iterations
+    optimal_model_loss_history = loss_hists[min_train_mse_index]  # loss history
 
     # testing optimal model
     log.write(f"\nTESTING OPTIMAL MODEL\n")
 
-    test_predictions = optimal_model.predict(X_test)
+    test_predictions = optimal_model.predict(X_test) * y_std + y_mean
     test_mse = mean_squared_error(y_test, test_predictions)
 
     # track testing MSE of optimal model
     log.write("Learning_Rate, Iterations, Test_MSE\n")
     log.write(f"{optimal_model_lr}, {optimal_model_iterations}, {test_mse:.2f}\n")
-
-    # close log file
-    log.close()
-
-    '''
-    plt.plot(range(1000), loss_history, label=f"LR: {lr}")
-    plt.title("MSE vs. Number of Iterations (SGDRegressor)")
-    plt.xlabel("Iterations")
-    plt.ylabel("Mean Squared Error")
-    plt.yscale('log')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-    '''
