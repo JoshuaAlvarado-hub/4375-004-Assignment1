@@ -54,8 +54,6 @@ y_test_scaled = (y_test - y_mean) / y_std
 learning_rates = [1e-5, 1e-6, 1e-7]
 iteration_nums = [1000, 2000, 3000]  # must be multiples of 50
 
-plt.figure(figsize=(10, 6))
-
 # trials, logs, and plots
 with open("log_trials_part2.txt", "w") as log:
     # training models
@@ -124,3 +122,18 @@ with open("log_trials_part2.txt", "w") as log:
     # track testing MSE of optimal model
     log.write("Learning_Rate, Iterations, Test_MSE\n")
     log.write(f"{optimal_model_lr}, {optimal_model_iterations}, {test_mse:.2f}\n")
+
+    # x-axis: recorded iterations
+    iterations_recorded = np.arange(50, optimal_model_iterations + 1, 50)
+
+    # graph of training history for optimal model
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(iterations_recorded, optimal_model_loss_history, marker='o')
+    ax.set_xlabel("Number of Iterations")
+    ax.set_ylabel("Training MSE")
+    ax.set_title(
+        f"Training MSE vs. Iterations for Optimal Model\n(LR={optimal_model_lr}, Iterations={optimal_model_iterations})")
+    ax.grid(True)
+
+    plt.tight_layout()
+    plt.show()
