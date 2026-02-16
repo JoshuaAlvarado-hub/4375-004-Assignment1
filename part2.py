@@ -112,7 +112,7 @@ with open("log_trials_part2.txt", "w") as log:
     test_mse = mean_squared_error(y_test, test_predictions)
 
     # track testing MSE of optimal model
-    log.write("Learning_Rate, Iterations, Test_MSE")
+    log.write("Learning_Rate, Iterations, Test_MSE\n")
     log.write(f"{optimal_model_lr}, {optimal_model_iterations}, {test_mse:.2f}\n")
 
     # close log file
